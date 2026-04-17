@@ -12,24 +12,26 @@ def predict(model, loader, device):
     results = defaultdict(dict)
 
     for batch in loader:
-        # Images, Labels, Metadata
+        # 1. Unpack: Images (Tensor), Labels (Tensor), Metadata (Tuple of Strings)
         images, _, metadata = batch
+        
+        # In your case, metadata IS the tuple of UIDs directly:
+        # e.g., ('RUMC_010_left', 'CAM_001_right', ...)
+        uids = metadata 
+
         images = images.to(device)
         logits = model(images)
         probs = torch.softmax(logits, dim=1).cpu().numpy()
 
-        # Extracting the full strings from the tuples
-        # In a batch of 4, uids will be a tuple: ('ID1', 'ID2', 'ID3', 'ID4')
-        uids = metadata[0] 
-        sides = metadata[1]
-
         for i in range(images.size(0)):
-            # Ensure we take the WHOLE string, not just the first char
-            uid = str(uids[i])
-            side = str(sides[i])
+            uid = str(uids[i]) # This now gets the WHOLE string 'RUMC_010_left'
+            
+            # Since the side ('left'/'right') is already IN the UID string,
+            # we extract it to keep your JSON structure consistent.
+            side = "left" if "left" in uid.lower() else "right"
+            
             prob = probs[i]
             
-            # This ensures the JSON key is 'ODELIA_BRAID1_...' and not 'R'
             results[uid][side] = {
                 "normal": round(float(prob[0]), 6),
                 "benign": round(float(prob[1]), 6),
