@@ -4,7 +4,7 @@
 # ============================================================
 
 #SBATCH --job-name=odelia_mil
-#SBATCH --account=share-ie-idi          
+#SBATCH --account=share-ie-idi        
 #SBATCH --partition=GPUQ
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=8
