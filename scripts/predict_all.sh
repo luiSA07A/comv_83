@@ -21,6 +21,7 @@ python src/predict.py \
   --model densenet \
   --checkpoint runs/best_model_densenet.pt \
   --data_root /cluster/projects/vc/courses/TDT17/mic/ODELIA2025 \
+  --subset val \
   --output runs/preds_densenet.csv
 
 # Run Prediction for MIL
@@ -29,4 +30,5 @@ python src/predict.py \
   --model mil \
   --checkpoint runs/best_model_mil.pt \
   --data_root /cluster/projects/vc/courses/TDT17/mic/ODELIA2025 \
+  --subset val \
   --output runs/preds_mil.csv
