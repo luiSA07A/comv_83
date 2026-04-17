@@ -1,10 +1,10 @@
-# ODELIA 2025: 3D DCE-MRI Breast Cancer Classification (Group 4)
+# ODELIA 2025: 3D DCE-MRI Breast Cancer Classification (Group 83)
 
 This repository contains the pipeline for classifying 3D DCE-MRI volumes into Normal, Benign, and Malignant categories using MONAI and PyTorch.
 
-## 🚀 Architectural Highlights
+## Architectural Highlights
 - **Unilateral Processing:** Each breast is treated as an independent study to maximize information density.
-- **Cost-Sensitive Learning:** Implemented weighted Cross-Entropy Loss to prioritize clinical sensitivity (85.7%).
+- **Cost-Sensitive Learning:** Implemented weighted Cross-Entropy Loss to prioritize clinical sensitivity
 - **Sustainability:** Automated energy tracking with Tesla-equivalent kilometer reporting.
 
 ## 🛠️ Installation
