@@ -7,13 +7,13 @@ This repository contains the pipeline for classifying 3D DCE-MRI volumes into No
 - **Cost-Sensitive Learning:** Implemented weighted Cross-Entropy Loss to prioritize clinical sensitivity
 - **Sustainability:** Automated energy tracking with Tesla-equivalent kilometer reporting.
 
-## 🛠️ Installation
+## Installation
 ```bash
+#login idun if needed
+ssh username@idun_login1.hpc.ntnu.no
 # Clone the repository
-git clone <your-repo-url>
+git clone <repo-url>
 cd comv_83
 
 # Setup Environment
-conda create -n odelia python=3.11
-conda activate odelia
-pip install torch monai scikit-learn pandas
+bash setup_idun.sh
