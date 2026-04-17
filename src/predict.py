@@ -67,7 +67,7 @@ def main():
 
     # Load dataset (test/hidden subset)
     df = load_odelia_metadata(args.data_root)
-    test_df = df[df["subset"] == args.subset].copy()
+    test_df = df[df["split"] == args.subset].copy()
     print(f"[Test set] {len(test_df)} breast entries in subset '{args.subset}'")
 
     test_ds = OdeliaDataset(test_df, transform=get_transforms("test"))
