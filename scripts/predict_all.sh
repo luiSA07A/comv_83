@@ -17,8 +17,16 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PYTHON_ROOT/lib
 
 # Run Prediction for DenseNet
 echo "Running DenseNet Predictions..."
-python src/predict.py --model densenet --model_path runs/best_model_densenet.pt
+python src/predict.py \
+  --model densenet \
+  --checkpoint runs/best_model_densenet.pt \
+  --data_root /cluster/projects/vc/courses/TDT17/mic/ODELIA2025 \
+  --output runs/preds_densenet.csv
 
 # Run Prediction for MIL
 echo "Running MIL Predictions..."
-python src/predict.py --model mil --model_path runs/best_model_mil.pt
+python src/predict.py \
+  --model mil \
+  --checkpoint runs/best_model_mil.pt \
+  --data_root /cluster/projects/vc/courses/TDT17/mic/ODELIA2025 \
+  --output runs/preds_mil.csv
