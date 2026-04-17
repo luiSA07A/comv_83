@@ -6,29 +6,26 @@
 #SBATCH --time=01:00:00
 #SBATCH --output=logs/prediction_%j.out
 
-# 1. LOAD THE SYSTEM PYTHON FIRST (This is the missing piece)
+# 1. Load Python
 module load Python/3.11.3-GCCcore-12.3.0
-
-# 2. Activate your environment
 source ~/venvs/odelia/bin/activate
-
-# 3. Add this to be extra safe (helps find those .so files)
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PYTHON_ROOT/lib
 
-# Run Prediction for DenseNet
+# 2. Run Prediction for DenseNet
+# We use --subset val because that is what is in your metadata
 echo "Running DenseNet Predictions..."
 python src/predict.py \
   --model densenet \
   --checkpoint runs/best_model_densenet.pt \
   --data_root /cluster/projects/vc/courses/TDT17/mic/ODELIA2025 \
   --subset val \
-  --output runs/preds_densenet.csv
+  --output runs/preds_densenet.json
 
-# Run Prediction for MIL
+# 3. Run Prediction for MIL
 echo "Running MIL Predictions..."
 python src/predict.py \
   --model mil \
   --checkpoint runs/best_model_mil.pt \
   --data_root /cluster/projects/vc/courses/TDT17/mic/ODELIA2025 \
   --subset val \
-  --output runs/preds_mil.csv
+  --output runs/preds_mil.json
