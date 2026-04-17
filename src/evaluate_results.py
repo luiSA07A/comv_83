@@ -7,9 +7,10 @@ def evaluate(json_path, data_root):
     with open(json_path, 'r') as f:
         preds = json.load(f)
     
-    # 2. Load the actual labels
     df = load_odelia_metadata(data_root)
-    val_df = df[df["split"] == "val"] # Make sure this matches your --subset
+    val_df = df[df["split"] == "val"]
+
+    print(f"Available columns: {val_df.columns.tolist()}")
     
     tp, fp, tn, fn = 0, 0, 0, 0
     correct = 0
