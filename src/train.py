@@ -15,7 +15,6 @@ def compute_metrics(labels, probs):
     return roc_auc_score(y_true, y_score)
 
 def main():
-    # 1. Setup Argument Parser to match your .sh scripts
     parser = argparse.ArgumentParser(description="ODELIA 2025 Training Script")
     parser.add_argument("--data_root", type=str, default="/cluster/projects/vc/courses/TDT17/mic/ODELIA2025")
     parser.add_argument("--epochs", type=int, default=10)
@@ -25,11 +24,9 @@ def main():
     parser.add_argument("--output_dir", type=str, default="./runs")
     args = parser.parse_args()
 
-    # 2. Setup Device and Directory
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     os.makedirs(args.output_dir, exist_ok=True)
     
-    # 3. Load data using official splits and your new path logic
     df = load_odelia_metadata(args.data_root)
     train_df = df[df["split"] == "train"]
     val_df = df[df["split"] == "val"]
@@ -39,16 +36,16 @@ def main():
     train_ds = OdeliaDataset(train_df, get_transforms("train"))
     val_ds = OdeliaDataset(val_df, get_transforms("val"))
     
-    # Added num_workers to speed up 3D data loading
+    #Added num_workers to speed up 3D data loading
     train_loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True, num_workers=4)
     val_loader = DataLoader(val_ds, batch_size=args.batch_size, num_workers=4)
 
-    # 4. Initialize Model, Optimizer, and Loss
+    #Initialize Model, Optimizer, and Loss
     model = get_model(args.model).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     criterion = nn.CrossEntropyLoss()
 
-    # 5. Training Loop
+    #Training Loop
     start_time = time.time()
     best_loss = float('inf')
 
@@ -69,13 +66,13 @@ def main():
         avg_loss = epoch_loss / len(train_loader)
         print(f"Epoch {epoch+1}/{args.epochs} complete. Avg Loss: {avg_loss:.4f}", flush=True)
 
-        # 6. Save Checkpoint
+        #Save Checkpoint
         if avg_loss < best_loss:
             best_loss = avg_loss
             save_path = os.path.join(args.output_dir, f"best_model_{args.model}.pt")
             torch.save(model.state_dict(), save_path)
 
-    # 7. Sustainability Calculation (The Tesla km)
+    #Sustainability Calculation (The Tesla km)
     total_hours = (time.time() - start_time) / 3600
     kwh = total_hours * 0.45 # Constant for RTX 4090/A100 power draw
     tesla_km = (kwh / 16) * 100

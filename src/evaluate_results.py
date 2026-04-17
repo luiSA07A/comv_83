@@ -4,11 +4,9 @@ import argparse
 from dataset import load_odelia_metadata
 
 def run_evaluation(json_path, data_root):
-    # 1. Load the "Smart" Metadata (same as train.py)
     df = load_odelia_metadata(data_root)
     val_df = df[df["split"] == "val"]
     
-    # 2. Load model predictions
     with open(json_path, 'r') as f:
         preds = json.load(f)
 

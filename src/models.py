@@ -11,13 +11,13 @@ import torch.nn.functional as F
 from monai.networks.nets import DenseNet121
 
 
-# ─── Model 1: 3D DenseNet121 (MONAI built-in) ─────────────────────────────────
+#Model 1: 3D DenseNet121 (MONAI built-in)
 
 class BreastDenseNet(nn.Module):
     """
     3D DenseNet121 for breast MRI classification.
-    Input:  (B, C, H, W, D)  — single channel (or multi-phase = multi-channel)
-    Output: (B, 3)            — logits for [normal, benign, malignant]
+    Input:  (B, C, H, W, D)  single channel (or multi-phase = multi-channel)
+    Output: (B, 3)           logits for [normal, benign, malignant]
     """
 
     def __init__(self, in_channels: int = 1, num_classes: int = 3, dropout: float = 0.3):
@@ -33,7 +33,7 @@ class BreastDenseNet(nn.Module):
         return self.backbone(x)
 
 
-# ─── Model 2: 2D EfficientNet + Multiple Instance Learning (MIL) ─────────────
+#Model 2: 2D EfficientNet + Multiple Instance Learning (MIL)
 
 class SliceAttentionMIL(nn.Module):
     """
@@ -52,11 +52,9 @@ class SliceAttentionMIL(nn.Module):
         super().__init__()
         self.num_slices = num_slices
 
-        # Import here so MONAI isn't required for this model
         try:
             import torchvision.models as tv
             backbone = tv.efficientnet_b0(weights="IMAGENET1K_V1")
-            # Replace first conv to accept 1-channel input
             backbone.features[0][0] = nn.Conv2d(
                 1, 32, kernel_size=3, stride=2, padding=1, bias=False
             )
@@ -64,11 +62,9 @@ class SliceAttentionMIL(nn.Module):
             backbone.classifier = nn.Identity()
             self.backbone = backbone
         except Exception:
-            # Fallback: simple CNN encoder
             self.backbone = SimpleCNNEncoder()
             self.feature_dim = 256
 
-        # Attention network (Ilse et al., 2018)
         self.attention = nn.Sequential(
             nn.Linear(self.feature_dim, 128),
             nn.Tanh(),
@@ -86,7 +82,6 @@ class SliceAttentionMIL(nn.Module):
         """
         B, C, H, W, D = x.shape
 
-        # Sample evenly-spaced slices along depth axis
         indices = torch.linspace(0, D - 1, self.num_slices, dtype=torch.long)
         slices = x[:, :, :, :, indices]          # (B, C, H, W, num_slices)
         slices = slices.permute(0, 4, 1, 2, 3)   # (B, num_slices, C, H, W)
@@ -120,7 +115,7 @@ class SimpleCNNEncoder(nn.Module):
         return self.net(x)
 
 
-# ─── Factory ──────────────────────────────────────────────────────────────────
+#Factory
 
 def get_model(name: str, **kwargs) -> nn.Module:
     """

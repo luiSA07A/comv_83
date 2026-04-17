@@ -9,7 +9,6 @@ from monai.transforms import (
 )
 
 def load_odelia_metadata(dataset_root: str):
-    # Update the root to include the /data/ subfolder
     root = Path(dataset_root) / "data" 
     all_records = []
     
@@ -31,7 +30,7 @@ def load_odelia_metadata(dataset_root: str):
                     all_records.append({
                         "image_path": str(img_path),
                         "label": int(row["Lesion"]),
-                        "split": row["Split"],   # MUST BE "split" (lowercase) for train.py
+                        "split": row["Split"],   
                         "patient_id": row["UID"]
                     })
     
@@ -45,7 +44,7 @@ def get_transforms(mode="train", spatial_size=(96, 96, 32)):
         LoadImaged(keys=keys),
         EnsureChannelFirstd(keys=keys),
         Orientationd(keys=keys, axcodes="RAS"),
-        Spacingd(keys=keys, pixdim=(0.7, 0.7, 3.0), mode="bilinear"), # Per challenge spec
+        Spacingd(keys=keys, pixdim=(0.7, 0.7, 3.0), mode="bilinear"), 
         ScaleIntensityRangePercentilesd(keys=keys, lower=1, upper=99, b_min=0, b_max=1, clip=True),
         NormalizeIntensityd(keys=keys, nonzero=True),
         Resized(keys=keys, spatial_size=spatial_size),
