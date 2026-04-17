@@ -21,6 +21,10 @@ def main():
     parser.add_argument("--lr", type=float, default=1e-4)
     args = parser.parse_args()
 
+    parser.add_argument("--data_root", type=str, default="/cluster/projects/vc/courses/TDT17/mic/ODELIA2025")
+    parser.add_argument("--batch_size", type=int, default=4)
+    parser.add_argument("--output_dir", type=str, default="./runs")
+
     data_root = "/cluster/projects/vc/courses/TDT17/mic/ODELIA2025"
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
