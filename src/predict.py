@@ -42,6 +42,7 @@ def main():
     parser.add_argument("--checkpoint", type=str, required=True)
     parser.add_argument("--model", type=str, default="densenet")
     parser.add_argument("--output", type=str, default="predictions.json")
+    parser.add_argument("--subset", type=str, default="val") 
     args = parser.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
