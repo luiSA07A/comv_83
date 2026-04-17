@@ -6,13 +6,13 @@
 #SBATCH --time=01:00:00
 #SBATCH --output=logs/prediction_%j.out
 
-# 1. Load the specific Python module used on IDUN
+# 1. LOAD THE SYSTEM PYTHON FIRST (This is the missing piece)
 module load Python/3.11.3-GCCcore-12.3.0
 
-# 2. Activate your virtual environment
+# 2. Activate your environment
 source ~/venvs/odelia/bin/activate
 
-# 3. Add this to ensure libraries are visible to the loader
+# 3. Add this to be extra safe (helps find those .so files)
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PYTHON_ROOT/lib
 
 # Run Prediction for DenseNet
