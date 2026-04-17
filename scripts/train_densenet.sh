@@ -29,7 +29,7 @@ DATA_ROOT=/cluster/projects/vc/courses/TDT17/mic/ODELIA2025
 python src/train.py \
     --data_root   $DATA_ROOT \
     --model       densenet \
-    --epochs      50 \
+    --epochs      100 \
     --batch_size  4 \
-    --lr          1e-4 \
+    --lr          1e-5 \
     --output_dir  ./runs
