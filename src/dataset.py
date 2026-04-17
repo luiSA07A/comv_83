@@ -9,7 +9,8 @@ from monai.transforms import (
 )
 
 def load_odelia_metadata(dataset_root: str):
-    root = Path(dataset_root)
+    # Update the root to include the /data/ subfolder
+    root = Path(dataset_root) / "data" 
     all_records = []
     
     # Iterate through each center (UKA, CAM, etc.)
@@ -25,16 +26,18 @@ def load_odelia_metadata(dataset_root: str):
             df_merged = pd.merge(df_anno, df_split, on="UID")
             
             for _, row in df_merged.iterrows():
-                # On IDUN, images are in data_unilateral/<UID>/Pre.nii.gz
                 img_path = inst_dir / "data_unilateral" / row["UID"] / "Pre.nii.gz"
                 if img_path.exists():
                     all_records.append({
                         "image_path": str(img_path),
                         "label": int(row["Lesion"]),
-                        "subset": row["Split"],
+                        "split": row["Split"],   # MUST BE "split" (lowercase) for train.py
                         "patient_id": row["UID"]
                     })
-    return pd.DataFrame(all_records)
+    
+    final_df = pd.DataFrame(all_records)
+    print(f"[Dataset] Found {len(final_df)} total records.") # Debug info
+    return final_df
 
 def get_transforms(mode="train", spatial_size=(96, 96, 32)):
     keys = ["image"]
