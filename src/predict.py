@@ -12,35 +12,29 @@ def predict(model, loader, device):
     results = defaultdict(dict)
 
     for batch in loader:
-        # 1. Unpack the three items: Images, Labels, Metadata
+        # Images, Labels, Metadata
         images, _, metadata = batch
-        
-        # 2. Extract IDs and Sides from the tuple
-        # Based on OdeliaDataset, metadata[0] is usually PIDs/UIDs, metadata[1] is Sides
-        # If your metadata is a dict, we handle that too.
-        if isinstance(metadata, dict):
-            uids = metadata.get('uid', metadata.get('patient_id'))
-            sides = metadata.get('side', metadata.get('laterality'))
-        else:
-            # If it's a tuple/list: index 0 is ID, index 1 is Side
-            uids = metadata[0]
-            sides = metadata[1]
-        
         images = images.to(device)
         logits = model(images)
         probs = torch.softmax(logits, dim=1).cpu().numpy()
 
+        # Extracting the full strings from the tuples
+        # In a batch of 4, uids will be a tuple: ('ID1', 'ID2', 'ID3', 'ID4')
+        uids = metadata[0] 
+        sides = metadata[1]
+
         for i in range(images.size(0)):
+            # Ensure we take the WHOLE string, not just the first char
             uid = str(uids[i])
             side = str(sides[i])
             prob = probs[i]
             
+            # This ensures the JSON key is 'ODELIA_BRAID1_...' and not 'R'
             results[uid][side] = {
                 "normal": round(float(prob[0]), 6),
                 "benign": round(float(prob[1]), 6),
                 "malignant": round(float(prob[2]), 6)
             }
-
     return dict(results)
 
 def main():
