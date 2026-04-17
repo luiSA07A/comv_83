@@ -21,8 +21,8 @@ def convert_json_to_csv(json_path, csv_path):
     df = pd.DataFrame(rows)
     df = df[["ID", "normal", "benign", "malignant"]]
     df.to_csv(csv_path, index=False)
-    print(f"✅ Submission file created: {csv_path}")
-    print(f"📊 Total rows: {len(df)}")
+    print(f"Submission file created: {csv_path}")
+    print(f"Total rows: {len(df)}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
