@@ -47,8 +47,15 @@ def predict(model, loader, device):
 
     for batch in loader:
         images, labels, metadata = batch
-        patient_ids = metadata['patient_id']
-        sides = metadata['laterality']
+        # Check if metadata is a dict or a list/tuple from the DataLoader
+        if isinstance(metadata, dict):
+            patient_ids = metadata['patient_id']
+            sides = metadata['laterality']
+        else:
+            # If it's a tuple/list, we assume patient_id is index 0 and laterality is index 1
+            # Based on your OdeliaDataset __getitem__ return order
+            patient_ids = metadata[0] 
+            sides = metadata[1]
         images = images.to(device)
         logits = model(images)
         probs = torch.softmax(logits, dim=1).cpu().numpy()
