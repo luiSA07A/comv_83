@@ -6,19 +6,19 @@
 #SBATCH --time=01:00:00
 #SBATCH --output=logs/prediction_%j.out
 
-# Activate your environment
+# 1. LOAD THE SYSTEM PYTHON FIRST (This is the missing piece)
+module load Python/3.11.3-GCCcore-12.3.0
+
+# 2. Activate your environment
 source ~/venvs/odelia/bin/activate
 
-# 1. Run Prediction for DenseNet
-echo "Running DenseNet Predictions..."
-python src/predict.py \
-  --model densenet \
-  --model_path runs/best_model_densenet.pt \
-  --output_csv runs/preds_densenet.csv
+# 3. Add this to be extra safe (helps find those .so files)
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PYTHON_ROOT/lib
 
-# 2. Run Prediction for MIL
+# Run Prediction for DenseNet
+echo "Running DenseNet Predictions..."
+python src/predict.py --model densenet --model_path runs/best_model_densenet.pt
+
+# Run Prediction for MIL
 echo "Running MIL Predictions..."
-python src/predict.py \
-  --model mil \
-  --model_path runs/best_model_mil.pt \
-  --output_csv runs/preds_mil.csv
+python src/predict.py --model mil --model_path runs/best_model_mil.pt
