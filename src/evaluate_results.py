@@ -33,10 +33,20 @@ def evaluate(json_path, data_root):
 
     for _, row in val_df.iterrows():
         pid = str(row['patient_id'])
-        side = str(row[side_col]) # Use the dynamically found column name
-        actual_label = int(row['label']) # 0=normal, 1=benign, 2=malignant
         
-        # Match against JSON structure (e.g., preds[patient_id][side])
+        # INFER SIDE FROM IMAGE PATH
+        path = str(row['image_path']).upper()
+        if '_L' in path or '/L/' in path:
+            side = 'L'
+        elif '_R' in path or '/R/' in path:
+            side = 'R'
+        else:
+            # Fallback: if your JSON uses the patient_id as the side (common in some templates)
+            side = pid 
+
+        actual_label = int(row['label'])
+        
+        # Match against JSON structure
         if pid in preds and side in preds[pid]:
             prob_dict = preds[pid][side]
             predicted_class_name = max(prob_dict, key=prob_dict.get)
