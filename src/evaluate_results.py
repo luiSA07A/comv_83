@@ -16,7 +16,7 @@ def evaluate(json_path, data_root):
 
     for _, row in val_df.iterrows():
         pid = str(row['patient_id'])
-        side = row['laterality']
+        side = row['side']
         actual_label = row['label'] # 0=normal, 1=benign, 2=malignant
         
         if pid in preds and side in preds[pid]:
