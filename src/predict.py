@@ -25,24 +25,29 @@ def predict(model, loader, device):
     results = defaultdict(dict)
 
     for batch in loader:
-        # FIX: The DataLoader returns (Image, Label, Patient_ID, Side)
-        # In a batch, PIDs and Sides are returned as Tuples of Strings.
-        images, labels, pids, sides = batch
+        # 1. Catch 3 items instead of 4
+        images, labels, metadata = batch
+        
+        # 2. Extract IDs and Sides from the metadata object
+        # In most MONAI/ODELIA setups, these are inside a dictionary or tuple
+        if isinstance(metadata, dict):
+            pids = metadata['patient_id']
+            sides = metadata['side'] if 'side' in metadata else metadata['laterality']
+        else:
+            # If it's a tuple/list from the dataset __getitem__
+            pids = metadata[0]
+            sides = metadata[1]
         
         images = images.to(device)
         logits = model(images)
         probs = torch.softmax(logits, dim=1).cpu().numpy()
 
-        # Iterate through the batch items using the actual batch size
         batch_count = images.size(0)
         for i in range(batch_count):
-            # Ensure we are grabbing the full string from the tuple/list
             pid = str(pids[i]) 
             side = str(sides[i])
             prob = probs[i]
             
-            # Use 'left' or 'right' if that's what is in your UID, 
-            # or keep L/R if your dataset helper maps it that way.
             results[pid][side] = {
                 label: round(float(prob[j]), 6)
                 for j, label in enumerate(LABEL_NAMES)
