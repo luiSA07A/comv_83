@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=odelia_predict
-#SBATCH --partition=gpuq
+#SBATCH --partition=GPUQ
 #SBATCH --gres=gpu:1
 #SBATCH --mem=32G
 #SBATCH --time=01:00:00
