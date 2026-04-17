@@ -46,7 +46,9 @@ def predict(model, loader, device):
     results = defaultdict(dict)  # patient_id -> {left: probs, right: probs}
 
     for batch in loader:
-        images, labels, patient_ids, sides = batch
+        images, labels, metadata = batch
+        patient_ids = metadata['patient_id']
+        sides = metadata['laterality']
         images = images.to(device)
         logits = model(images)
         probs = torch.softmax(logits, dim=1).cpu().numpy()

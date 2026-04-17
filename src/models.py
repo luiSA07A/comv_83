@@ -48,7 +48,7 @@ class SliceAttentionMIL(nn.Module):
     This approach is memory-efficient and leverages strong 2D ImageNet pretraining.
     """
 
-    def __init__(self, num_classes: int = 3, num_slices: int = 16, dropout: float = 0.3):
+    def __init__(self, num_classes: int = 3, num_slices: int = 16, dropout: float = 0.3, **kwargs):
         super().__init__()
         self.num_slices = num_slices
 
