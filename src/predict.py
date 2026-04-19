@@ -1,33 +1,28 @@
 import json
 import argparse
 import torch
+import os
+import pandas as pd
 from torch.utils.data import DataLoader
-from dataset import load_odelia_metadata, get_transforms, OdeliaDataset
+from dataset import get_transforms, OdeliaDataset
 from models import get_model
 from collections import defaultdict
-import pandas as pd
 
 @torch.no_grad()
 def predict(model, loader, device):
     model.eval()
     results = defaultdict(dict)
-
     for batch in loader:
         images, _, metadata = batch
- 
         uids = metadata 
-
         images = images.to(device)
         logits = model(images)
         probs = torch.softmax(logits, dim=1).cpu().numpy()
 
         for i in range(images.size(0)):
             uid = str(uids[i])
-            
             side = "left" if "left" in uid.lower() else "right"
-            
             prob = probs[i]
-            
             results[uid][side] = {
                 "normal": round(float(prob[0]), 6),
                 "benign": round(float(prob[1]), 6),
@@ -37,35 +32,50 @@ def predict(model, loader, device):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data_root", type=str, default="/cluster/projects/vc/courses/TDT17/mic/ODELIA2025")
-    parser.add_argument("--split_file", type=str, default=None, help="Path to specific split.csv (e.g. RSH split)")
+    parser.add_argument("--data_root", type=str, default="/cluster/projects/vc/courses/TDT17/mic/ODELIA2025/data/RSH/data_unilateral")
+    parser.add_argument("--split_file", type=str, default="/cluster/projects/vc/courses/TDT17/mic/ODELIA2025/data/RSH/metadata_unilateral/split.csv")
     parser.add_argument("--checkpoint", type=str, required=True)
     parser.add_argument("--model", type=str, default="densenet")
-    parser.add_argument("--output", type=str, default="predictions.json")
-    parser.add_argument("--subset", type=str, default="val") 
+    parser.add_argument("--output_csv", type=str, default="predictions_leaderboard.csv")
     args = parser.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
-    if args.split_file:
-        df = pd.read_csv(args.split_file)
-        df.columns = [c.lower() for c in df.columns]
-        val_df = df # Predict on everything in the RSH split file
-    else:
-        df = load_odelia_metadata(args.data_root)
-        val_df = df[df["split"] == args.subset]
+    # 1. Load RSH Specific Split
+    df = pd.read_csv(args.split_file)
+    df.columns = [c.lower() for c in df.columns] # Handle UID vs uid
     
-    val_ds = OdeliaDataset(val_df, transform=get_transforms("val"))
+    # 2. Build explicit paths to Post_1.nii.gz for every RSH folder
+    df["image_path"] = df["uid"].apply(lambda x: os.path.join(args.data_root, x, "Post_1.nii.gz"))
+    
+    val_ds = OdeliaDataset(df, transform=get_transforms("val"))
     loader = DataLoader(val_ds, batch_size=4, shuffle=False, num_workers=2)
 
     model = get_model(args.model).to(device)
     model.load_state_dict(torch.load(args.checkpoint, map_location=device))
 
-    predictions = predict(model, loader, device)
+    raw_results = predict(model, loader, device)
 
-    with open(args.output, "w") as f:
-        json.dump(predictions, f, indent=2)
-    print(f"[Done] Saved predictions to {args.output}")
+    # 3. MAP TO EXAM_ID (Leaderboard Requirement)
+    # Get unique study IDs (AnonymizedXXX) and sort them alphabetically
+    study_ids = sorted(list(set([u.replace('_left', '').replace('_right', '') for u in raw_results.keys()])))
+    
+    submission_rows = []
+    for i, study in enumerate(study_ids):
+        exam_id = f"examID_{i+1}" # Map to examID_1, examID_2...
+        for side in ['left', 'right']:
+            uid = f"{study}_{side}"
+            if uid in raw_results:
+                scores = raw_results[uid][side]
+                submission_rows.append({
+                    'ID': exam_id,
+                    'normal': scores['normal'],
+                    'benign': scores['benign'],
+                    'malignant': scores['malignant']
+                })
+
+    pd.DataFrame(submission_rows).to_csv(args.output_csv, index=False)
+    print(f"[Done] Saved Leaderboard CSV to {args.output_csv}")
 
 if __name__ == "__main__":
     main()
