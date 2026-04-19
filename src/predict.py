@@ -59,26 +59,33 @@ def main():
 
     raw_results = predict(model, loader, device)
 
-    # 3. MAP TO EXAM_ID (Leaderboard Requirement)
+    # 3. MAP TO THE CHALLENGE'S "WIDE" FORMAT
     # Get unique study IDs (AnonymizedXXX) and sort them alphabetically
     study_ids = sorted(list(set([u.replace('_left', '').replace('_right', '') for u in raw_results.keys()])))
     
     submission_rows = []
-    for i, study in enumerate(study_ids):
-        exam_id = f"examID_{i+1}" # Map to examID_1, examID_2...
-        for side in ['left', 'right']:
-            uid = f"{study}_{side}"
-            if uid in raw_results:
-                scores = raw_results[uid][side]
-                submission_rows.append({
-                    'ID': exam_id,
-                    'normal': scores['normal'],
-                    'benign': scores['benign'],
-                    'malignant': scores['malignant']
-                })
+    for study in study_ids:
+        # Map AnonymizedXXX to examID_N
+        exam_id = f"examID_{study_ids.index(study) + 1}"
+        
+        # Get the scores for both sides
+        # We use the 'malignant' probability as the score for the leaderboard
+        left_uid = f"{study}_left"
+        right_uid = f"{study}_right"
+        
+        # Pull the malignant score, default to 0.0 if the side is missing
+        l_score = raw_results.get(left_uid, {}).get("left", {}).get("malignant", 0.0)
+        r_score = raw_results.get(right_uid, {}).get("right", {}).get("malignant", 0.0)
+        
+        submission_rows.append({
+            'studyID': exam_id,      # Matches their ground truth header
+            'Lesion_Left': l_score,  # Matches their ground truth header
+            'Lesion_Right': r_score  # Matches their ground truth header
+        })
 
+    # Save the wide-format CSV
     pd.DataFrame(submission_rows).to_csv(args.output_csv, index=False)
-    print(f"[Done] Saved Leaderboard CSV to {args.output_csv}")
+    print(f"[Done] Saved WIDE Format CSV to {args.output_csv}")
 
 if __name__ == "__main__":
     main()
