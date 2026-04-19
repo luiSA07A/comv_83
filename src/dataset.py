@@ -3,18 +3,13 @@ import torch
 from torch.utils.data import Dataset
 from monai.transforms import (
     Compose, LoadImaged, EnsureChannelFirstd, 
-    Orientationd, Spacingd, Resized, ScaleIntensityRanged
+    Orientationd, Spacingd, Resized, ScaleIntensityRanged,
+    RandFlipd, RandRotate90d, RandZoomd, RandGaussianNoised
 )
 import os
-from monai.transforms import RandFlipd, RandRotate90d, RandZoomd, RandGaussianNoised
 
 class OdeliaDataset(Dataset):
     def __init__(self, df, transform=None):
-        """
-        Args:
-            df (pd.DataFrame): Dataframe containing 'uid' and potentially 'image_path'.
-            transform (callable, optional): MONAI transforms to be applied.
-        """
         self.df = df
         self.transform = transform
 
@@ -23,57 +18,76 @@ class OdeliaDataset(Dataset):
 
     def __getitem__(self, idx):
         row = self.df.iloc[idx]
+        img_path = row["image_path"]
         
-        # 1. IDENTIFY THE IMAGE PATH
-        # We check if 'image_path' was already built in predict.py
-        if "image_path" in row and pd.notna(row["image_path"]):
-            img_path = row["image_path"]
-        else:
-            # Fallback/Safety: If image_path isn't in the DF, 
-            # we assume the UID is the folder name and look for Post_1
-            # Note: This requires the data_root to be set correctly in your environment
-            uid = str(row['uid'])
-            img_path = uid # This will likely fail LoadImaged if it's just a folder
-
-        # 2. LOAD AND TRANSFORM
-        # The 'image' key matches what MONAI LoadImaged expects
         data = {"image": img_path}
         
         if self.transform:
             try:
                 data = self.transform(data)
             except Exception as e:
+                # If an image is missing, this helps you find which one
                 print(f"Error loading image at {img_path}: {e}")
                 raise e
 
-        # 3. HANDLE LABELS (For RSH, labels might be dummy/missing)
-        label = int(row["label"]) if "label" in row else 0
+        # Using the column we created in load_odelia_metadata
+        label = int(row["label"])
+        uid = str(row['uid'])
         
-        # metadata is used by predict.py to keep track of which UID produced which score
-        metadata = str(row['uid'])
-        
-        return data["image"], label, metadata
+        return data["image"], label, uid
 
 def load_odelia_metadata(data_root):
     """
-    Standard loader for the training split.
+    Robust loader that merges institutional annotations with the main split file.
     """
-    # Change 'metadata.csv' to 'split_unilateral.csv'
-    csv_path = os.path.join(data_root, "split_unilateral.csv") 
+    # 1. Load the main split file (this contains UID, Split, Institution)
+    split_file = os.path.join(data_root, "split_unilateral.csv")
+    if not os.path.exists(split_file):
+        raise FileNotFoundError(f"Could not find {split_file}")
     
-    if not os.path.exists(csv_path):
-        raise FileNotFoundError(f"Could not find the split file at {csv_path}")
+    df_split = pd.read_csv(split_file)
+    
+    # 2. Gather annotations (labels) from all institutions
+    all_annotations = []
+    institutions = df_split['Institution'].unique()
+    
+    for inst in institutions:
+        # Path: data_root/data/INST/metadata_unilateral/annotation.csv
+        anno_path = os.path.join(data_root, "data", inst, "metadata_unilateral", "annotation.csv")
+        if os.path.exists(anno_path):
+            df_anno = pd.read_csv(anno_path)
+            all_annotations.append(df_anno)
+            
+    if not all_annotations:
+        raise ValueError("Found no annotation files in institutional folders!")
         
-    df = pd.read_csv(csv_path)
-    df.columns = [c.lower() for c in df.columns]
+    df_all_anno = pd.concat(all_annotations).drop_duplicates(subset=['UID'])
+    
+    # 3. Merge splits with labels (Lesion -> label)
+    df = pd.merge(df_split, df_all_anno[['UID', 'Lesion']], on='UID', how='inner')
+    
+    # 4. Standardize for train.py (lowercase and renamed)
+    df = df.rename(columns={'UID': 'uid', 'Split': 'split', 'Lesion': 'label'})
+    df['split'] = df['split'].str.lower()
+    
+    # 5. Construct full image paths
+    # Structure: data_root/data/Institution/UID/Post_1.nii.gz
+    def get_path(row):
+        return os.path.join(data_root, "data", row['Institution'], row['uid'], "Post_1.nii.gz")
+    
+    df['image_path'] = df.apply(get_path, axis=1)
+    
+    # Optional: Verify images exist to avoid crashes mid-training
+    # df = df[df['image_path'].map(os.path.exists)]
+    
+    print(f"[Dataset] Successfully loaded {len(df)} samples with labels.")
     return df
 
 def get_transforms(mode="val"):
     """
-    Standard preprocessing for 3D DCE-MRI.
-    Added heavy augmentation for training to prevent identical predictions.
+    Standard preprocessing with conditional augmentation for training.
     """
-    # 1. BASE TRANSFORMS (Used for both Train and Val)
+    # Basic setup
     transforms = [
         LoadImaged(keys=["image"]),
         EnsureChannelFirstd(keys=["image"]),
@@ -81,20 +95,16 @@ def get_transforms(mode="val"):
         Spacingd(keys=["image"], pixdim=(1.0, 1.0, 1.0), mode="bilinear"),
     ]
 
-    # 2. TRAINING AUGMENTATIONS (Only added if mode == "train")
+    # Add Augmentations ONLY for training
     if mode == "train":
         transforms.extend([
-            # Flips the image randomly across any axis
             RandFlipd(keys=["image"], prob=0.5, spatial_axis=[0, 1, 2]),
-            # Rotates in 90-degree increments
             RandRotate90d(keys=["image"], prob=0.5, max_k=3),
-            # Slight zoom in/out (90% to 110%)
             RandZoomd(keys=["image"], prob=0.3, min_zoom=0.9, max_zoom=1.1),
-            # Adds electronic noise to simulate different scanners
             RandGaussianNoised(keys=["image"], prob=0.1),
         ])
 
-    # 3. FINAL TRANSFORMS (Used for both Train and Val)
+    # Final scaling and resizing
     transforms.extend([
         Resized(keys=["image"], spatial_size=(224, 224, 80)),
         ScaleIntensityRanged(
