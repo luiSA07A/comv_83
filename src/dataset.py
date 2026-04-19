@@ -61,5 +61,10 @@ class OdeliaDataset(Dataset):
     def __len__(self): return len(self.df)
     def __getitem__(self, idx):
         row = self.df.iloc[idx]
-        data = self.transform({"image": row["image_path"]})
+        img_key = 'image_path' if 'image_path' in row else 'uid' 
+        if img_key not in row:
+            # If it's RSH, it might just be the first column
+            img_key = row.index[0] 
+
+        data = self.transform({"image": row[img_key]})
         return data["image"], row["label"], row["patient_id"]
