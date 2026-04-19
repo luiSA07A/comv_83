@@ -1,7 +1,10 @@
 import pandas as pd
 import torch
 from torch.utils.data import Dataset
-from monai.transforms import Compose
+from monai.transforms import (
+    Compose, LoadImaged, EnsureChannelFirstd, 
+    Orientationd, Spacingd, Resized, ScaleIntensityRanged
+)
 import os
 
 class OdeliaDataset(Dataset):
@@ -59,3 +62,23 @@ def load_odelia_metadata(data_root):
     # Ensure columns are lowercase for consistency
     df.columns = [c.lower() for c in df.columns]
     return df
+
+def get_transforms(mode="val"):
+    """
+    Standard preprocessing for 3D DCE-MRI.
+    Matches the input expected by the DenseNet/MIL models.
+    """
+    return Compose([
+        LoadImaged(keys=["image"]),
+        EnsureChannelFirstd(keys=["image"]),
+        Orientationd(keys=["image"], axcodes="RAS"),
+        # Standardize voxel spacing to 1mm x 1mm x 1mm
+        Spacingd(keys=["image"], pixdim=(1.0, 1.0, 1.0), mode="bilinear"),
+        # Resize to the input dimensions the model was trained on (e.g., 224x224x80)
+        Resized(keys=["image"], spatial_size=(224, 224, 80)),
+        # Standardize intensity (MRI values can vary wildly)
+        ScaleIntensityRanged(
+            keys=["image"], a_min=0, a_max=1000,
+            b_min=0.0, b_max=1.0, clip=True,
+        ),
+    ])
