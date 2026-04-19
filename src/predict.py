@@ -62,36 +62,32 @@ def main():
     # Run Inference
     raw_results = predict(model, loader, device)
 
-    # 3. MAP TO PORTAL SCHEMA (ID, normal, benign, malignant)
-    # Get unique study IDs and sort them alphabetically to ensure consistent examID mapping
-    all_uids = list(raw_results.keys())
-    study_ids = sorted(list(set([u.replace('_left', '').replace('_right', '') for u in all_uids])))
+    # 3. MAP TO THE CHALLENGE'S "WIDE" FORMAT
+    study_ids = sorted(list(set([u.replace('_left', '').replace('_right', '') for u in raw_results.keys()])))
     
     submission_rows = []
     for study in study_ids:
         # Map AnonymizedXXX to examID_N
         exam_id = f"examID_{study_ids.index(study) + 1}"
         
-        # The portal expects two rows per examID: one for Left, one for Right
-        for side in ['left', 'right']:
-            uid = f"{study}_{side}"
-            
-            # Retrieve scores or use a 'normal' fallback if a side is missing
-            if uid in raw_results:
-                scores = raw_results[uid][side]
-            else:
-                scores = {"normal": 1.0, "benign": 0.0, "malignant": 0.0}
-            
-            submission_rows.append({
-                'ID': exam_id,         # Header MUST be 'ID'
-                'normal': scores['normal'],
-                'benign': scores['benign'],
-                'malignant': scores['malignant']
-            })
+        # Get the scores for BOTH sides
+        left_uid = f"{study}_left"
+        right_uid = f"{study}_right"
+        
+        # We use the 'malignant' probability as the score for the leaderboard
+        l_score = raw_results.get(left_uid, {}).get("left", {}).get("malignant", 0.0)
+        r_score = raw_results.get(right_uid, {}).get("right", {}).get("malignant", 0.0)
+        
+        submission_rows.append({
+            'studyID': exam_id,      # MUST BE studyID
+            'Lesion_Left': l_score,  # MUST BE Lesion_Left
+            'Lesion_Right': r_score  # MUST BE Lesion_Right
+        })
 
-    # Save to CSV
-    pd.DataFrame(submission_rows).to_csv(args.output_csv, index=False)
-    print(f"[SUCCESS] Saved formatted results to {args.output_csv}")
-
+    # Save the wide-format CSV
+    df_final = pd.DataFrame(submission_rows)
+    df_final.to_csv(args.output_csv, index=False)
+    print(f"[Done] Saved WIDE Format CSV with {len(df_final)} rows.")
+    
 if __name__ == "__main__":
     main()
