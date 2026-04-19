@@ -26,7 +26,7 @@ DATA_ROOT=/cluster/projects/vc/courses/TDT17/mic/ODELIA2025
 python src/train.py \
     --data_root   $DATA_ROOT \
     --model       mil \
-    --epochs      60 \
+    --epochs      100 \
     --batch_size  4 \
     --lr          5e-5 \
-    --output_dir  ./runs
+    --output_dir  ./runs/densenet_v2

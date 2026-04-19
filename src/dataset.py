@@ -6,6 +6,7 @@ from monai.transforms import (
     Orientationd, Spacingd, Resized, ScaleIntensityRanged
 )
 import os
+from monai.transforms import RandFlipd, RandRotate90d, RandZoomd, RandGaussianNoised
 
 class OdeliaDataset(Dataset):
     def __init__(self, df, transform=None):
@@ -66,19 +67,36 @@ def load_odelia_metadata(data_root):
 def get_transforms(mode="val"):
     """
     Standard preprocessing for 3D DCE-MRI.
-    Matches the input expected by the DenseNet/MIL models.
+    Added heavy augmentation for training to prevent identical predictions.
     """
-    return Compose([
+    # 1. BASE TRANSFORMS (Used for both Train and Val)
+    transforms = [
         LoadImaged(keys=["image"]),
         EnsureChannelFirstd(keys=["image"]),
         Orientationd(keys=["image"], axcodes="RAS"),
-        # Standardize voxel spacing to 1mm x 1mm x 1mm
         Spacingd(keys=["image"], pixdim=(1.0, 1.0, 1.0), mode="bilinear"),
-        # Resize to the input dimensions the model was trained on (e.g., 224x224x80)
+    ]
+
+    # 2. TRAINING AUGMENTATIONS (Only added if mode == "train")
+    if mode == "train":
+        transforms.extend([
+            # Flips the image randomly across any axis
+            RandFlipd(keys=["image"], prob=0.5, spatial_axis=[0, 1, 2]),
+            # Rotates in 90-degree increments
+            RandRotate90d(keys=["image"], prob=0.5, max_k=3),
+            # Slight zoom in/out (90% to 110%)
+            RandZoomd(keys=["image"], prob=0.3, min_zoom=0.9, max_zoom=1.1),
+            # Adds electronic noise to simulate different scanners
+            RandGaussianNoised(keys=["image"], prob=0.1),
+        ])
+
+    # 3. FINAL TRANSFORMS (Used for both Train and Val)
+    transforms.extend([
         Resized(keys=["image"], spatial_size=(224, 224, 80)),
-        # Standardize intensity (MRI values can vary wildly)
         ScaleIntensityRanged(
             keys=["image"], a_min=0, a_max=1000,
             b_min=0.0, b_max=1.0, clip=True,
         ),
     ])
+
+    return Compose(transforms)
