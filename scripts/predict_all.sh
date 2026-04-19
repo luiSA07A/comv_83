@@ -17,15 +17,15 @@ echo "Running DenseNet Predictions..."
 python src/predict.py \
   --model densenet \
   --checkpoint runs/best_model_densenet.pt \
-  --data_root /cluster/projects/vc/courses/TDT17/mic/ODELIA2025 \
-  --subset val \
-  --output runs/preds_densenet.json
+  --data_root /cluster/projects/vc/courses/TDT17/mic/ODELIA2025/data/RSH/data_unilateral \
+  --split_file /cluster/projects/vc/courses/TDT17/mic/ODELIA2025/data/RSH/metadata_unilateral/split.csv \
+  --output runs/preds_rsh_final.json
 
 # 3. Run Prediction for MIL
 echo "Running MIL Predictions..."
 python src/predict.py \
   --model mil \
   --checkpoint runs/best_model_mil.pt \
-  --data_root /cluster/projects/vc/courses/TDT17/mic/ODELIA2025 \
-  --subset val \
-  --output runs/preds_mil.json
+  --data_root /cluster/projects/vc/courses/TDT17/mic/ODELIA2025/data/RSH/data_unilateral \
+  --split_file /cluster/projects/vc/courses/TDT17/mic/ODELIA2025/data/RSH/metadata_unilateral/split.csv \
+  --output runs/preds_mil_final.json

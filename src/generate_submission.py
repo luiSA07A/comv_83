@@ -1,32 +1,33 @@
 import json
 import pandas as pd
-import argparse
 
-def convert_json_to_csv(json_path, csv_path):
-    with open(json_path, 'r') as f:
-        data = json.load(f)
+# 1. Load the RSH results
+with open('runs/preds_rsh_final.json', 'r') as f:
+    preds = json.load(f)
 
-    rows = []
-    for uid, sides in data.items():
-        for side, probs in sides.items():
-            total = probs['normal'] + probs['benign'] + probs['malignant']
-            
-            rows.append({
-                "ID": uid,
-                "normal": probs['normal'] / total,
-                "benign": probs['benign'] / total,
-                "malignant": probs['malignant'] / total
+# 2. Extract unique StudyIDs (e.g., Anonymized100) and sort alphabetically
+# This is how we ensure examID_1 matches the ground truth
+uids = list(preds.keys())
+study_ids = sorted(list(set([u.replace('_left', '').replace('_right', '') for u in uids])))
+
+# 3. Map to examID_X and create rows
+submission_data = []
+for i, study in enumerate(study_ids):
+    exam_id = f"examID_{i+1}"
+    
+    # The leaderboard expects 2 rows per ID (Left and Right)
+    for side in ['left', 'right']:
+        uid = f"{study}_{side}"
+        if uid in preds:
+            # Your predict.py nested them: preds[uid][side]
+            scores = preds[uid][side]
+            submission_data.append({
+                'ID': exam_id,
+                'normal': scores['normal'],
+                'benign': scores['benign'],
+                'malignant': scores['malignant']
             })
 
-    df = pd.DataFrame(rows)
-    df = df[["ID", "normal", "benign", "malignant"]]
-    df.to_csv(csv_path, index=False)
-    print(f"Submission file created: {csv_path}")
-    print(f"Total rows: {len(df)}")
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--json", type=str, default="runs/preds_densenet.json")
-    parser.add_argument("--output", type=str, default="predictions.csv")
-    args = parser.parse_args()
-    convert_json_to_csv(args.json, args.output)
+# 4. Save
+pd.DataFrame(submission_data).to_csv('predictions_leaderboard.csv', index=False)
+print("Done! Upload predictions_leaderboard.csv to the portal.")
