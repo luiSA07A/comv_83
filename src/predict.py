@@ -62,32 +62,30 @@ def main():
     # Run Inference
     raw_results = predict(model, loader, device)
 
-    # 3. MAP TO THE CHALLENGE'S "WIDE" FORMAT
-    study_ids = sorted(list(set([u.replace('_left', '').replace('_right', '') for u in raw_results.keys()])))
-    
+    # 3. MAP TO THE OFFICIAL LONG FORMAT
     submission_rows = []
-    for study in study_ids:
-        # Map AnonymizedXXX to examID_N
-        exam_id = f"examID_{study_ids.index(study) + 1}"
+    
+    # Iterate through every UID we processed
+    for uid, sides_dict in raw_results.items():
+        # raw_results[uid] looks like {"left": {"normal": 0.9, ...}}
+        # We just need the side name to get the values
+        side = "left" if "left" in uid.lower() else "right"
+        scores = sides_dict[side]
         
-        # Get the scores for BOTH sides
-        left_uid = f"{study}_left"
-        right_uid = f"{study}_right"
-        
-        # We use the 'malignant' probability as the score for the leaderboard
-        l_score = raw_results.get(left_uid, {}).get("left", {}).get("malignant", 0.0)
-        r_score = raw_results.get(right_uid, {}).get("right", {}).get("malignant", 0.0)
+        # ENSURE SUM TO 1 (Floating point math can sometimes be off by 0.000001)
+        total = scores['normal'] + scores['benign'] + scores['malignant']
         
         submission_rows.append({
-            'studyID': exam_id,      # MUST BE studyID
-            'Lesion_Left': l_score,  # MUST BE Lesion_Left
-            'Lesion_Right': r_score  # MUST BE Lesion_Right
+            'ID': uid,  # Use the ORIGINAL UID (e.g., Anonymized100_left)
+            'normal': scores['normal'] / total,
+            'benign': scores['benign'] / total,
+            'malignant': scores['malignant'] / total
         })
 
-    # Save the wide-format CSV
+    # Save the CSV with the exact required headers
     df_final = pd.DataFrame(submission_rows)
     df_final.to_csv(args.output_csv, index=False)
-    print(f"[Done] Saved WIDE Format CSV with {len(df_final)} rows.")
-    
+    print(f"[Done] Saved Official Format CSV with {len(df_final)} rows.")
+
 if __name__ == "__main__":
     main()
