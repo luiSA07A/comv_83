@@ -46,8 +46,11 @@ def main():
     df.columns = [c.lower() for c in df.columns] # Handle UID vs uid
     
     # 2. Build explicit paths to Post_1.nii.gz for every RSH folder
-    df["image_path"] = df["uid"].apply(lambda x: os.path.join(args.data_root, x, "Post_1.nii.gz"))
-    
+    if "image_path" not in df.columns:
+        # Ensure we point to the absolute path of the Post_1 file
+        df["image_path"] = df["uid"].apply(
+            lambda x: os.path.join(args.data_root, x, "Post_1.nii.gz")
+        )
     val_ds = OdeliaDataset(df, transform=get_transforms("val"))
     loader = DataLoader(val_ds, batch_size=4, shuffle=False, num_workers=2)
 
