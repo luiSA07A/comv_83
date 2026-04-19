@@ -56,11 +56,15 @@ class OdeliaDataset(Dataset):
 
 def load_odelia_metadata(data_root):
     """
-    Standard loader for the main CAM/RUMC metadata.
+    Standard loader for the training split.
     """
-    csv_path = os.path.join(data_root, "metadata.csv")
+    # Change 'metadata.csv' to 'split_unilateral.csv'
+    csv_path = os.path.join(data_root, "split_unilateral.csv") 
+    
+    if not os.path.exists(csv_path):
+        raise FileNotFoundError(f"Could not find the split file at {csv_path}")
+        
     df = pd.read_csv(csv_path)
-    # Ensure columns are lowercase for consistency
     df.columns = [c.lower() for c in df.columns]
     return df
 
