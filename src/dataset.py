@@ -8,6 +8,7 @@ from monai.transforms import (
 )
 import os
 
+
 class OdeliaDataset(Dataset):
     def __init__(self, df, transform=None):
         self.df = df
@@ -37,50 +38,41 @@ class OdeliaDataset(Dataset):
         return data["image"], label, uid
 
 def load_odelia_metadata(data_root):
-    """
-    Robust loader that merges institutional annotations with the main split file.
-    """
-    # 1. Load the main split file (this contains UID, Split, Institution)
     split_file = os.path.join(data_root, "split_unilateral.csv")
-    if not os.path.exists(split_file):
-        raise FileNotFoundError(f"Could not find {split_file}")
-    
     df_split = pd.read_csv(split_file)
     
-    # 2. Gather annotations (labels) from all institutions
     all_annotations = []
-    institutions = df_split['Institution'].unique()
-    
-    for inst in institutions:
-        # Path: data_root/data/INST/metadata_unilateral/annotation.csv
+    for inst in df_split['Institution'].unique():
         anno_path = os.path.join(data_root, "data", inst, "metadata_unilateral", "annotation.csv")
         if os.path.exists(anno_path):
             df_anno = pd.read_csv(anno_path)
             all_annotations.append(df_anno)
             
-    if not all_annotations:
-        raise ValueError("Found no annotation files in institutional folders!")
-        
     df_all_anno = pd.concat(all_annotations).drop_duplicates(subset=['UID'])
-    
-    # 3. Merge splits with labels (Lesion -> label)
     df = pd.merge(df_split, df_all_anno[['UID', 'Lesion']], on='UID', how='inner')
-    
-    # 4. Standardize for train.py (lowercase and renamed)
     df = df.rename(columns={'UID': 'uid', 'Split': 'split', 'Lesion': 'label'})
     df['split'] = df['split'].str.lower()
     
-    # 5. Construct full image paths
-    # Structure: data_root/data/Institution/UID/Post_1.nii.gz
+    # --- UPDATED PATH LOGIC ---
     def get_path(row):
-        return os.path.join(data_root, "data", row['Institution'], row['uid'], "Post_1.nii.gz")
-    
+        # We now include 'data_unilateral' in the path
+        folder_path = os.path.join(data_root, "data", row['Institution'], "data_unilateral", row['uid'])
+        
+        # Check for the file (case-insensitive search)
+        patterns = ["Post_1.nii.gz", "POST_1.nii.gz", "*.nii.gz"]
+        for p in patterns:
+            matches = glob.glob(os.path.join(folder_path, p))
+            if matches:
+                return matches[0]
+        return None
+
     df['image_path'] = df.apply(get_path, axis=1)
     
-    # Optional: Verify images exist to avoid crashes mid-training
-    # df = df[df['image_path'].map(os.path.exists)]
+    # Drop rows where the file literally doesn't exist on disk
+    initial_len = len(df)
+    df = df.dropna(subset=['image_path'])
+    print(f"[Dataset] Found {len(df)} valid images (Dropped {initial_len - len(df)} missing files)")
     
-    print(f"[Dataset] Successfully loaded {len(df)} samples with labels.")
     return df
 
 def get_transforms(mode="val"):
