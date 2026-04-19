@@ -59,8 +59,7 @@ def load_odelia_metadata(data_root):
         # We now include 'data_unilateral' in the path
         folder_path = os.path.join(data_root, "data", row['Institution'], "data_unilateral", row['uid'])
         
-        # Check for the file (case-insensitive search)
-        patterns = ["Post_1.nii.gz", "POST_1.nii.gz", "*.nii.gz"]
+        patterns = ["Post_1.nii.gz"]
         for p in patterns:
             matches = glob.glob(os.path.join(folder_path, p))
             if matches:
