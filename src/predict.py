@@ -5,6 +5,7 @@ from torch.utils.data import DataLoader
 from dataset import load_odelia_metadata, get_transforms, OdeliaDataset
 from models import get_model
 from collections import defaultdict
+import pandas as pd
 
 @torch.no_grad()
 def predict(model, loader, device):
@@ -12,11 +13,8 @@ def predict(model, loader, device):
     results = defaultdict(dict)
 
     for batch in loader:
-        # 1. Unpack: Images (Tensor), Labels (Tensor), Metadata (Tuple of Strings)
         images, _, metadata = batch
-        
-        # In your case, metadata IS the tuple of UIDs directly:
-        # e.g., ('RUMC_010_left', 'CAM_001_right', ...)
+ 
         uids = metadata 
 
         images = images.to(device)
@@ -24,10 +22,8 @@ def predict(model, loader, device):
         probs = torch.softmax(logits, dim=1).cpu().numpy()
 
         for i in range(images.size(0)):
-            uid = str(uids[i]) # This now gets the WHOLE string 'RUMC_010_left'
+            uid = str(uids[i])
             
-            # Since the side ('left'/'right') is already IN the UID string,
-            # we extract it to keep your JSON structure consistent.
             side = "left" if "left" in uid.lower() else "right"
             
             prob = probs[i]
@@ -42,6 +38,7 @@ def predict(model, loader, device):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--data_root", type=str, default="/cluster/projects/vc/courses/TDT17/mic/ODELIA2025")
+    parser.add_argument("--split_file", type=str, default=None, help="Path to specific split.csv (e.g. RSH split)")
     parser.add_argument("--checkpoint", type=str, required=True)
     parser.add_argument("--model", type=str, default="densenet")
     parser.add_argument("--output", type=str, default="predictions.json")
@@ -50,9 +47,13 @@ def main():
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
-    # Use your internal logic to get the correct validation dataframe
-    df = load_odelia_metadata(args.data_root)
-    val_df = df[df["split"] == "val"]
+    if args.split_file:
+        df = pd.read_csv(args.split_file)
+        df.columns = [c.lower() for c in df.columns]
+        val_df = df # Predict on everything in the RSH split file
+    else:
+        df = load_odelia_metadata(args.data_root)
+        val_df = df[df["split"] == args.subset]
     
     val_ds = OdeliaDataset(val_df, transform=get_transforms("val"))
     loader = DataLoader(val_ds, batch_size=4, shuffle=False, num_workers=2)
