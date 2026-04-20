@@ -16,8 +16,8 @@ SPLIT_FILE="/cluster/projects/vc/courses/TDT17/mic/ODELIA2025/data/RSH/metadata_
 # --- 1. RUN DENSENET ---
 echo "Running DenseNet on RSH Cohort..."
 python src/predict.py \
-  --model densenet \
-  --checkpoint runs/best_model_densenet.pt \
+  --model densenet/best_model_densenet.pt \
+  --checkpoint runs/dense_v2.pt \
   --data_root $DATA_DIR \
   --split_file $SPLIT_FILE \
   --output_csv predictions_densenet_leaderboard.csv
@@ -26,7 +26,7 @@ python src/predict.py \
 echo "Running MIL on RSH Cohort..."
 python src/predict.py \
   --model mil \
-  --checkpoint runs/best_model_mil.pt \
+  --checkpoint runs/densenet_v2/best_model_densenet.pt \
   --data_root $DATA_DIR \
   --split_file $SPLIT_FILE \
   --output_csv predictions_mil_leaderboard.csv
