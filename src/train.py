@@ -62,6 +62,7 @@ def main():
     # 4. INITIALIZE MODEL AND WEIGHTED LOSS
     model = get_model(args.model).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
     
     # Normalize weights so Normal class weight is 1.0
     loss_weights = torch.tensor([w / class_weights[0] for w in class_weights]).to(device)
@@ -71,7 +72,8 @@ def main():
 
     # 5. TRAINING LOOP
     start_time = time.time()
-    best_loss = float('inf')
+    #best_loss = float('inf')
+    best_auc = 0.0
 
     for epoch in range(args.epochs):
         model.train()
@@ -90,11 +92,26 @@ def main():
         avg_loss = epoch_loss / len(train_loader)
         print(f"Epoch {epoch+1}/{args.epochs} complete. Avg Loss: {avg_loss:.4f}", flush=True)
 
+        model.eval()
+        all_labels, all_probs = [], []
+        with torch.no_grad():
+            for imgs, lbls, _ in val_loader:
+                imgs = imgs.to(device)
+                logits = model(imgs)
+                probs = torch.softmax(logits, dim=1).cpu().numpy()
+                all_probs.extend(probs.tolist())
+                all_labels.extend(lbls.tolist())
+
+        val_auc = compute_metrics(all_labels, all_probs)
+        print(f"  Val AUC: {val_auc:.4f}", flush=True)
+
         # SAVE CHECKPOINT
-        if avg_loss < best_loss:
-            best_loss = avg_loss
+        if val_auc > best_auc:
+            best_auc = val_auc
             save_path = os.path.join(args.output_dir, f"best_model_{args.model}.pt")
             torch.save(model.state_dict(), save_path)
+        
+        scheduler.step()
 
     # 6. SUSTAINABILITY CALCULATION
     total_hours = (time.time() - start_time) / 3600

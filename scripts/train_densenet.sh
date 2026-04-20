@@ -31,5 +31,5 @@ python src/train.py \
     --model       densenet \
     --epochs      100 \
     --batch_size  4 \
-    --lr          5e-5 \
+    --lr          1e-4 \
     --output_dir  ./runs/dense_v3
