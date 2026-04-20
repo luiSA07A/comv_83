@@ -28,12 +28,10 @@ class OdeliaDataset(Dataset):
             try:
                 data = self.transform(data)
             except Exception as e:
-                # If an image is missing, this helps you find which one
                 print(f"Error loading image at {img_path}: {e}")
                 raise e
 
-        # Using the column we created in load_odelia_metadata
-        label = int(row["label"])
+        label = int(row["label"]) if "label" in row.index else -1
         uid = str(row['uid'])
         
         return data["image"], label, uid
