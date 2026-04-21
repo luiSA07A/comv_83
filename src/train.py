@@ -102,18 +102,18 @@ def main():
         print(f"  Val AUC: {val_auc:.4f}", flush=True)
 
         if val_auc > best_auc:
-        best_auc = val_auc
-        patience_counter = 0  # reset counter
-        save_path = os.path.join(args.output_dir, f"best_model_{args.model}.pt")
-        torch.save(model.state_dict(), save_path)
-        print(f"New best saved! AUC: {val_auc:.4f}", flush=True)
-    else:
-        patience_counter += 1
-        print(f"  No improvement. Patience: {patience_counter}/{patience}", flush=True)
-        if patience_counter >= patience:
-            print(f"  Early stopping at epoch {epoch+1}", flush=True)
-            break
-        
+            best_auc = val_auc
+            patience_counter = 0  # reset counter
+            save_path = os.path.join(args.output_dir, f"best_model_{args.model}.pt")
+            torch.save(model.state_dict(), save_path)
+            print(f"New best saved! AUC: {val_auc:.4f}", flush=True)
+        else:
+            patience_counter += 1
+            print(f"  No improvement. Patience: {patience_counter}/{patience}", flush=True)
+            if patience_counter >= patience:
+                print(f"  Early stopping at epoch {epoch+1}", flush=True)
+                break
+
         scheduler.step()  
 
     total_hours = (time.time() - start_time) / 3600
