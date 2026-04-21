@@ -48,28 +48,43 @@ def load_odelia_metadata(data_root):
             all_annotations.append(df_anno)
             
     df_all_anno = pd.concat(all_annotations).drop_duplicates(subset=['UID'])
-    df = pd.merge(df_split, df_all_anno[['UID', 'Lesion']], on='UID', how='inner')
+    
+    df = pd.merge(df_split, df_all_anno[['UID', 'Lesion']], on='UID', how='left')
+
+    def fill_missing_label(row):
+        if pd.isna(row['Lesion']):
+            # get the opposite side UID
+            if '_right' in row['UID']:
+                counterpart = row['UID'].replace('_right', '_left')
+            else:
+                counterpart = row['UID'].replace('_left', '_right')
+            match = df_all_anno[df_all_anno['UID'] == counterpart]['Lesion']
+            if len(match) > 0:
+                return match.values[0]
+            return None  # still unknown, drop later
+        return row['Lesion']
+    
+    df['Lesion'] = df.apply(fill_missing_label, axis=1)
+    
     df = df.rename(columns={'UID': 'uid', 'Split': 'split', 'Lesion': 'label'})
     df['split'] = df['split'].str.lower()
+    df = df.dropna(subset=['label'])
+    df['label'] = df['label'].astype(int)
     
-    # --- UPDATED PATH LOGIC ---
     def get_path(row):
-        # We now include 'data_unilateral' in the path
         folder_path = os.path.join(data_root, "data", row['Institution'], "data_unilateral", row['uid'])
-        
-        patterns = ["Post_1.nii.gz"]
-        for p in patterns:
-            matches = glob.glob(os.path.join(folder_path, p))
-            if matches:
-                return matches[0]
+        matches = glob.glob(os.path.join(folder_path, "Post_1.nii.gz"))
+        if matches:
+            return matches[0]
         return None
 
     df['image_path'] = df.apply(get_path, axis=1)
     
-    # Drop rows where the file literally doesn't exist on disk
     initial_len = len(df)
     df = df.dropna(subset=['image_path'])
     print(f"[Dataset] Found {len(df)} valid images (Dropped {initial_len - len(df)} missing files)")
+    print(f"[Dataset] Label distribution:\n{df['label'].value_counts()}")
+    print(f"[Dataset] Train/val split:\n{df['split'].value_counts()}")
     
     return df
 

@@ -68,7 +68,9 @@ def main():
     print(f"[Status] Softened Loss Weights: {loss_weights.tolist()}")
 
     start_time = time.time()
-    best_auc = 0.0  # ✅ track AUC not loss
+    best_auc = 0.0 
+    patience = 7          # stop if no improvement for 7 epochs
+    patience_counter = 0
 
     for epoch in range(args.epochs):
         # --- TRAINING ---
@@ -100,11 +102,18 @@ def main():
         print(f"  Val AUC: {val_auc:.4f}", flush=True)
 
         if val_auc > best_auc:
-            best_auc = val_auc
-            save_path = os.path.join(args.output_dir, f"best_model_{args.model}.pt")
-            torch.save(model.state_dict(), save_path)
-            print(f"  ✅ New best model saved! AUC: {val_auc:.4f}", flush=True)
-
+        best_auc = val_auc
+        patience_counter = 0  # reset counter
+        save_path = os.path.join(args.output_dir, f"best_model_{args.model}.pt")
+        torch.save(model.state_dict(), save_path)
+        print(f"New best saved! AUC: {val_auc:.4f}", flush=True)
+    else:
+        patience_counter += 1
+        print(f"  No improvement. Patience: {patience_counter}/{patience}", flush=True)
+        if patience_counter >= patience:
+            print(f"  Early stopping at epoch {epoch+1}", flush=True)
+            break
+        
         scheduler.step()  
 
     total_hours = (time.time() - start_time) / 3600

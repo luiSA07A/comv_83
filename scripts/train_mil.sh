@@ -9,7 +9,7 @@
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=32G
-#SBATCH --time=12:00:00                 
+#SBATCH --time=03:00:00                 
 #SBATCH --output=logs/%j_mil.out
 #SBATCH --error=logs/%j_mil.err
 
@@ -26,7 +26,7 @@ DATA_ROOT=/cluster/projects/vc/courses/TDT17/mic/ODELIA2025
 python src/train.py \
     --data_root   $DATA_ROOT \
     --model       mil \
-    --epochs      100 \
-    --batch_size  4 \
+    --epochs      30 \
+    --batch_size  8 \
     --lr          5e-5 \
-    --output_dir  ./runs/mil_v4
+    --output_dir  ./runs/mil_v5
