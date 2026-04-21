@@ -30,6 +30,6 @@ python src/train.py \
     --data_root   $DATA_ROOT \
     --model       densenet \
     --epochs      30 \
-    --batch_size  8 \
+    --batch_size  4 \
     --lr          1e-4 \
-    --output_dir  ./runs/dense_v5
+    --output_dir  ./runs/dense_v6

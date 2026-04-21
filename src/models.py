@@ -7,24 +7,17 @@ Model 2: EfficientNet-based MIL      — more advanced, uses 2D slices
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
 from monai.networks.nets import DenseNet121
 
 
 #Model 1: 3D DenseNet121 (MONAI built-in)
 
 class BreastDenseNet(nn.Module):
-    """
-    3D DenseNet121 for breast MRI classification.
-    Input:  (B, C, H, W, D)  single channel (or multi-phase = multi-channel)
-    Output: (B, 3)           logits for [normal, benign, malignant]
-    """
-
-    def __init__(self, in_channels: int = 1, num_classes: int = 3, dropout: float = 0.3):
+    def __init__(self, in_channels=2, num_classes=3, dropout=0.3): # Changed to 2
         super().__init__()
         self.backbone = DenseNet121(
             spatial_dims=3,
-            in_channels=in_channels,
+            in_channels=in_channels, # Now accepting [Pre, Post_1]
             out_channels=num_classes,
             dropout_prob=dropout,
         )

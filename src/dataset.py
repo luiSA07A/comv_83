@@ -71,51 +71,28 @@ def load_odelia_metadata(data_root):
     df = df.dropna(subset=['label'])
     df['label'] = df['label'].astype(int)
     
-    def get_path(row):
-        folder_path = os.path.join(data_root, "data", row['Institution'], "data_unilateral", row['uid'])
-        matches = glob.glob(os.path.join(folder_path, "Post_1.nii.gz"))
-        if matches:
-            return matches[0]
-        return None
+    def get_paths(row):
+        folder = os.path.join(data_root, "data", row['Institution'], "data_unilateral", row['uid'])
+        pre = os.path.join(folder, "Pre.nii.gz")
+        post = os.path.join(folder, "Post_1.nii.gz")
+        if os.path.exists(pre) and os.path.exists(post):
+            return pre, post
+        return None, None
 
-    df['image_path'] = df.apply(get_path, axis=1)
-    
-    initial_len = len(df)
-    df = df.dropna(subset=['image_path'])
-    print(f"[Dataset] Found {len(df)} valid images (Dropped {initial_len - len(df)} missing files)")
-    print(f"[Dataset] Label distribution:\n{df['label'].value_counts()}")
-    print(f"[Dataset] Train/val split:\n{df['split'].value_counts()}")
-    
-    return df
+    df[['pre_path', 'post_path']] = df.apply(
+        lambda r: pd.Series(get_paths(r)), axis=1
+    )
+    return df.dropna(subset=['pre_path'])
 
 def get_transforms(mode="val"):
-    """
-    Standard preprocessing with conditional augmentation for training.
-    """
-    # Basic setup
-    transforms = [
-        LoadImaged(keys=["image"]),
-        EnsureChannelFirstd(keys=["image"]),
-        Orientationd(keys=["image"], axcodes="RAS"),
-        Spacingd(keys=["image"], pixdim=(1.0, 1.0, 1.0), mode="bilinear"),
-    ]
-
-    # Add Augmentations ONLY for training
-    if mode == "train":
-        transforms.extend([
-            RandFlipd(keys=["image"], prob=0.5, spatial_axis=[0, 1, 2]),
-            RandRotate90d(keys=["image"], prob=0.5, max_k=3),
-            RandZoomd(keys=["image"], prob=0.3, min_zoom=0.9, max_zoom=1.1),
-            RandGaussianNoised(keys=["image"], prob=0.1),
-        ])
-
-    # Final scaling and resizing
-    transforms.extend([
-        Resized(keys=["image"], spatial_size=(224, 224, 80)),
-        ScaleIntensityRanged(
-            keys=["image"], a_min=0, a_max=1000,
-            b_min=0.0, b_max=1.0, clip=True,
-        ),
+    return Compose([
+        LoadImaged(keys=["pre", "post"]),
+        EnsureChannelFirstd(keys=["pre", "post"]),
+        # Normalize intensities individually before stacking
+        ScaleIntensityRanged(keys=["pre", "post"], a_min=0, a_max=1500, b_min=0.0, b_max=1.0, clip=True),
+        Orientationd(keys=["pre", "post"], axcodes="RAS"),
+        Spacingd(keys=["pre", "post"], pixdim=(1.0, 1.0, 1.0), mode="bilinear"),
+        Resized(keys=["pre", "post"], spatial_size=(224, 224, 80)),
+        # STACK THEM: Creates a 2-channel input [Pre, Post_1]
+        ConcatItemsd(keys=["pre", "post"], name="image"), 
     ])
-
-    return Compose(transforms)

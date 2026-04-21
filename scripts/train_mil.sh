@@ -27,6 +27,6 @@ python src/train.py \
     --data_root   $DATA_ROOT \
     --model       mil \
     --epochs      30 \
-    --batch_size  8 \
-    --lr          5e-5 \
-    --output_dir  ./runs/mil_v5
+    --batch_size  4 \
+    --lr          1e-5 \
+    --output_dir  ./runs/mil_v6
