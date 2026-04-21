@@ -26,7 +26,7 @@ python src/predict.py \
 echo "Running MIL on RSH Cohort..."
 python src/predict.py \
   --model mil \
-  --checkpoint runs/mil_v2/best_model_mil.pt \
+  --checkpoint runs/densenet_v2/best_model_mil.pt \
   --data_root $DATA_DIR \
   --split_file $SPLIT_FILE \
   --output_csv predictions_mil_leaderboard.csv
