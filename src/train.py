@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import argparse
 import os
+import math
 import pandas as pd
 from torch.utils.data import DataLoader, WeightedRandomSampler
 from sklearn.metrics import roc_auc_score
@@ -10,7 +11,6 @@ from dataset import load_odelia_metadata, get_transforms, OdeliaDataset
 from models import get_model
 
 def compute_metrics(labels, probs):
-    # AUROC for malignant (label 2) vs others
     y_true = [1 if l == 2 else 0 for l in labels]
     y_score = [p[2] for p in probs]
     try:
@@ -31,16 +31,14 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     os.makedirs(args.output_dir, exist_ok=True)
     
-    # 1. LOAD DATA AND CALCULATE WEIGHTS
     df = load_odelia_metadata(args.data_root)
     train_df = df[df["split"] == "train"].copy()
     val_df = df[df["split"] == "val"].copy()
     
-    # Calculate weights based on label frequency (Normal, Benign, Malignant)
+    # Softer weights using sqrt
     counts = train_df["label"].value_counts().sort_index().to_list()
-    class_weights = [1.0 / c for c in counts]
+    class_weights = [1.0 / math.sqrt(c) for c in counts]  # ✅ sqrt instead of 1/c
     
-    # 2. CONSTRUCT BALANCED SAMPLER
     sample_weights = [class_weights[int(l)] for l in train_df["label"].values]
     sampler = WeightedRandomSampler(
         weights=sample_weights, 
@@ -48,49 +46,45 @@ def main():
         replacement=True
     )
     
-    print(f"[Status] Training on {len(train_df)} samples (Balanced), Validating on {len(val_df)} samples.")
+    print(f"[Status] Training on {len(train_df)} samples, Validating on {len(val_df)} samples.")
     
-    # 3. INITIALIZE DATASETS AND LOADERS
-    # Uses "train" mode for augmentations and "val" for deterministic validation
     train_ds = OdeliaDataset(train_df, get_transforms("train"))
     val_ds = OdeliaDataset(val_df, get_transforms("val"))
     
-    # Shuffle must be False when using a Sampler
     train_loader = DataLoader(train_ds, batch_size=args.batch_size, sampler=sampler, num_workers=4)
     val_loader = DataLoader(val_ds, batch_size=args.batch_size, num_workers=4)
 
-    # 4. INITIALIZE MODEL AND WEIGHTED LOSS
     model = get_model(args.model).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
-    
-    # Normalize weights so Normal class weight is 1.0
-    loss_weights = torch.tensor([w / class_weights[0] for w in class_weights]).to(device)
+
+    loss_weights = torch.tensor([1.0 / math.sqrt(c) for c in counts])
+    loss_weights = loss_weights / loss_weights[0]  # normalize to baseline
+    loss_weights = loss_weights.to(device)
     criterion = nn.CrossEntropyLoss(weight=loss_weights)
     
-    print(f"[Status] Using Weighted Loss: {loss_weights.tolist()}")
+    # LR scheduler
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
+    
+    print(f"[Status] Softened Loss Weights: {loss_weights.tolist()}")
 
-    # 5. TRAINING LOOP
     start_time = time.time()
-    #best_loss = float('inf')
-    best_auc = 0.0
+    best_auc = 0.0  # ✅ track AUC not loss
 
     for epoch in range(args.epochs):
+        # --- TRAINING ---
         model.train()
         epoch_loss = 0
         for imgs, lbls, _ in train_loader:
             imgs, lbls = imgs.to(device), lbls.to(device)
             optimizer.zero_grad()
-            
             outputs = model(imgs)
             loss = criterion(outputs, lbls)
             loss.backward()
             optimizer.step()
-            
             epoch_loss += loss.item()
         
         avg_loss = epoch_loss / len(train_loader)
-        print(f"Epoch {epoch+1}/{args.epochs} complete. Avg Loss: {avg_loss:.4f}", flush=True)
+        print(f"Epoch {epoch+1}/{args.epochs} | Loss: {avg_loss:.4f}", flush=True)
 
         model.eval()
         all_labels, all_probs = [], []
@@ -105,17 +99,16 @@ def main():
         val_auc = compute_metrics(all_labels, all_probs)
         print(f"  Val AUC: {val_auc:.4f}", flush=True)
 
-        # SAVE CHECKPOINT
         if val_auc > best_auc:
             best_auc = val_auc
             save_path = os.path.join(args.output_dir, f"best_model_{args.model}.pt")
             torch.save(model.state_dict(), save_path)
-        
-        scheduler.step()
+            print(f"  ✅ New best model saved! AUC: {val_auc:.4f}", flush=True)
 
-    # 6. SUSTAINABILITY CALCULATION
+        scheduler.step()  
+
     total_hours = (time.time() - start_time) / 3600
-    kwh = total_hours * 0.45 
+    kwh = total_hours * 0.35
     tesla_km = (kwh / 16) * 100
     print(f"\n--- Sustainability Report ---")
     print(f"Energy used: {kwh:.2f} kWh")

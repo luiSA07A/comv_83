@@ -32,4 +32,4 @@ python src/train.py \
     --epochs      100 \
     --batch_size  4 \
     --lr          1e-4 \
-    --output_dir  ./runs/dense_v3
+    --output_dir  ./runs/dense_v4
